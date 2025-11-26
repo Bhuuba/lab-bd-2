@@ -1,0 +1,95 @@
+version: "3.8"
+
+services:
+  # Microsoft SQL Server 2019
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: tourism-mssql
+    environment:
+      SA_PASSWORD: YourPassword123
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - tourism_network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/opt/mssql-tools/bin/sqlcmd",
+          "-S",
+          "localhost",
+          "-U",
+          "sa",
+          "-P",
+          "YourPassword123",
+          "-Q",
+          "SELECT 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: tourism-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - tourism_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Commander (Web UI for Redis) - optional
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: tourism-redis-commander
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - tourism_network
+
+volumes:
+  sqlserver_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  tourism_network:
+    driver: bridge
+# ============================================
+# USAGE
+# ============================================
+# Start services:
+#   docker-compose up -d
+#
+# Stop services:
+#   docker-compose down
+#
+# View logs:
+#   docker-compose logs -f mssql
+#   docker-compose logs -f redis
+#
+# Connect to SQL Server:
+#   sqlcmd -S localhost,1433 -U sa -P YourPassword123
+#
+# Connect to Redis:
+#   redis-cli -h localhost -p 6379
+#
+# Redis Web UI:
+#   http://localhost:8081
